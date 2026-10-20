@@ -54,3 +54,11 @@ Thumbs.db
 .agents/
 skills-lock.json
 supabase_migrations.sql
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
