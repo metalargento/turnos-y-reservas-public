@@ -1,0 +1,56 @@
+# Environment variables (keep only the .env.example templates)
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
+!backend/.env.example
+!frontend/.env.example
+
+# Database dumps and local backups
+*.sql
+!backend/migrations/*.sql
+
+# Dependencies
+node_modules/
+**/node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.venv
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local dev tooling and private notes
+.agents/
+skills-lock.json
+supabase_migrations.sql
