@@ -35,3 +35,21 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
+
+variable "image_tag" {
+  description = "Tag of the backend image in ECR."
+  type        = string
+  default     = "latest"
+}
+
+variable "allowed_origins" {
+  description = "Frontend origin allowed by CORS (exact URL)."
+  type        = string
+  default     = "https://example.vercel.app"
+}
+
+variable "frontend_url" {
+  description = "Frontend URL used for redirects."
+  type        = string
+  default     = "https://example.vercel.app"
+}
