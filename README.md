@@ -105,8 +105,27 @@ The database is created if missing, migrations are applied, and tables are clean
 | Backend | Python 3.11, PostgreSQL 16 service container, installs dependencies, runs `pytest` (applies migrations first) |
 | Frontend | Node 24, `npm ci`, `npm run build` (TypeScript type-check + Vite build) |
 | Docker | Builds the backend image without pushing it |
+| Terraform | `fmt -check`, `validate` and an offline `plan` of `infra/` (fake credentials, never applies) |
 
-No secrets are used; the test database credentials live in the workflow.
+No secrets are used; the test database credentials live in the workflow, and the Terraform job runs with fake AWS credentials.
+
+## Infrastructure as code (AWS)
+
+The live demo runs on Render, Vercel and Supabase. `infra/` is a Terraform description of how the same backend would run on AWS:
+
+| Module | Resources |
+| --- | --- |
+| `network` | VPC, private subnets, NAT gateway, security groups (only the backend reaches the database) |
+| `database` | RDS PostgreSQL 16, private and encrypted |
+| `app` | ECR registry, Secrets Manager, IAM roles, App Runner service with a VPC connector |
+
+```bash
+cd infra
+terraform init -backend=false
+TF_VAR_use_fake_credentials=true TF_VAR_secret_key=x TF_VAR_jwt_secret=x TF_VAR_db_password=x terraform plan
+```
+
+The plan runs offline with fake credentials, so no AWS account is needed and nothing is created. It is deliberately never applied: the NAT gateway and RDS cost money, and the App Runner service needs an image pushed to ECR first. Secrets have no defaults and are never committed.
 
 ## Design decisions
 
@@ -132,6 +151,7 @@ No secrets are used; the test database credentials live in the workflow.
 ```
 backend/    FastAPI app, SQL migrations, tests
 frontend/   React + Vite + Tailwind app
+infra/      Terraform for AWS (network, database, App Runner)
 docs/       Development notes, original design document, progress log
 .github/    CI workflow
 ```
