@@ -105,7 +105,7 @@ The database is created if missing, migrations are applied, and tables are clean
 | Backend | Python 3.11, PostgreSQL 16 service container, installs dependencies, runs `pytest` (applies migrations first) |
 | Frontend | Node 24, `npm ci`, `npm run build` (TypeScript type-check + Vite build) |
 | Docker | Builds the backend image without pushing it |
-| Terraform | `fmt -check`, `validate` and an offline `plan` of `infra/` (fake credentials, never applies) |
+| Terraform | `fmt -check`, `validate` and an offline `plan` of both `infra/` and `infra/serverless/` (fake credentials, never applies) |
 
 No secrets are used; the test database credentials live in the workflow, and the Terraform job runs with fake AWS credentials.
 
@@ -126,6 +126,44 @@ TF_VAR_use_fake_credentials=true TF_VAR_secret_key=x TF_VAR_jwt_secret=x TF_VAR_
 ```
 
 The plan runs offline with fake credentials, so no AWS account is needed and nothing is created. It is deliberately never applied: the NAT gateway and RDS cost money, and the App Runner service needs an image pushed to ECR first. Secrets have no defaults and are never committed.
+
+### Serverless variant
+
+`infra/serverless/` describes the same product with no always-on compute, as an alternative to the App Runner setup above. It reuses Supabase as the database, so there is no VPC, NAT gateway or RDS.
+
+| Module | Resources |
+| --- | --- |
+| `frontend` | Private S3 bucket, CloudFront with Origin Access Control, `index.html` fallback for React Router paths |
+| `api` | ECR registry, Lambda (container image), API Gateway HTTP API with throttling, CloudWatch logs |
+
+```bash
+cd infra/serverless
+terraform init -backend=false
+TF_VAR_use_fake_credentials=true TF_VAR_secret_key=x TF_VAR_jwt_secret=x TF_VAR_database_url=x terraform plan
+```
+
+Like the first variant it is plan-only. State is local by default; `main.tf` has a commented `backend "s3"` block showing how it would be kept remotely.
+
+**App Runner or Lambda?**
+
+| | App Runner (`infra/`) | Lambda + S3 + CloudFront (`infra/serverless/`) |
+| --- | --- | --- |
+| Idle cost | An instance is always provisioned, plus NAT and RDS | Close to zero: storage and requests only |
+| First request after idle | Fast | Cold start of a few seconds |
+| Traffic profile it suits | Steady traffic, long requests, WebSockets | Low or spiky traffic, short requests |
+| Database | RDS in a private subnet | External (Supabase pooler on port 6543) |
+| Code changes needed | None | See below |
+| Operations | Fewer moving parts | More pieces (API Gateway, CloudFront), less to patch |
+
+For a booking page used by a few small businesses, traffic is low and spiky, so the serverless variant fits better. With steady load or long-lived connections, App Runner would be the simpler choice.
+
+**What the backend would need to run on Lambda** (not done, the code in `backend/` is unchanged):
+
+- **Entry point:** the image would add the AWS Lambda Web Adapter, which forwards API Gateway events to the app on port 8080. The current Dockerfile already serves that port, so no Mangum wrapper is needed.
+- **Migrations:** they run at FastAPI startup today, which would mean on every cold start. They should move to a separate step in the deploy pipeline.
+- **Rate limiting:** slowapi keeps counters in memory, and each Lambda instance has its own memory, so the limit would stop working. API Gateway throttling is configured as a coarse replacement; per-route limits would need a shared store.
+- **Database connections:** each instance opens its own connections, so the pooler URL must be used to avoid exhausting Postgres.
+- **Secrets:** Lambda cannot inject Secrets Manager values the way App Runner does, so they are passed as environment variables (encrypted at rest). Reading them from Secrets Manager at startup would be stricter but needs a code change.
 
 ## Design decisions
 
