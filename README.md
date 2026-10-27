@@ -127,6 +127,10 @@ TF_VAR_use_fake_credentials=true TF_VAR_secret_key=x TF_VAR_jwt_secret=x TF_VAR_
 
 The plan runs offline with fake credentials, so no AWS account is needed and nothing is created. It is deliberately never applied: the NAT gateway and RDS cost money, and the App Runner service needs an image pushed to ECR first. Secrets have no defaults and are never committed.
 
+### Other architecture variants
+
+This branch (`main`) describes the App Runner deployment. A serverless alternative (S3 + CloudFront for the frontend, Lambda + API Gateway for the backend, Supabase as the database) lives on its own branch, [`arch/serverless-aws`](https://github.com/metalargento/turnos-y-reservas-public/tree/arch/serverless-aws), with a comparison of when each one fits.
+
 ## Design decisions
 
 - **Layered backend** with typed errors (`AppError`), so HTTP concerns, orchestration, business rules and SQL stay separate.
