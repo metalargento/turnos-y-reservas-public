@@ -79,17 +79,24 @@ jobs:
         run: docker build --tag turnos-api:ci .
 
   terraform:
-    name: Terraform (fmt, validate, plan)
+    name: Terraform (${{ matrix.dir }})
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # App Runner variant and serverless variant, each with its own plan.
+        dir: [infra, infra/serverless]
     defaults:
       run:
-        working-directory: infra
+        working-directory: ${{ matrix.dir }}
     env:
       # Offline plan: fake AWS credentials and placeholder secrets. Nothing is created.
+      # Variables a variant does not declare are ignored by Terraform.
       TF_VAR_use_fake_credentials: "true"
       TF_VAR_secret_key: ci-placeholder
       TF_VAR_jwt_secret: ci-placeholder
       TF_VAR_db_password: ci-placeholder
+      TF_VAR_database_url: ci-placeholder
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: hashicorp/setup-terraform@v3.1.2
