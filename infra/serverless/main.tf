@@ -17,3 +17,22 @@ module "frontend" {
 
   name = var.project_name
 }
+
+module "api" {
+  source = "./modules/api"
+
+  name      = var.project_name
+  image_tag = var.image_tag
+
+  environment = {
+    APP_ENV         = "production"
+    ALLOWED_ORIGINS = module.frontend.url
+    FRONTEND_URL    = module.frontend.url
+  }
+
+  secrets = {
+    SECRET_KEY   = var.secret_key
+    JWT_SECRET   = var.jwt_secret
+    DATABASE_URL = var.database_url
+  }
+}
